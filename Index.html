@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Libro de Gastos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink-900:#1B2B22;
+    --ink-800:#233A2C;
+    --paper-50:#ECE7D6;
+    --paper-100:#DFD9C3;
+    --paper-200:#CFC8AC;
+    --line:#B9B197;
+    --stamp:#9C3B23;
+    --stamp-dark:#7A2C19;
+    --gold:#B8892E;
+    --sage:#4C6B4F;
+    --text:#2A2A24;
+    --text-soft:#5C5A4C;
+    --cat-comida:#B8892E;
+    --cat-transporte:#3E6E8E;
+    --cat-vivienda:#4C6B4F;
+    --cat-salud:#9C3B23;
+    --cat-ocio:#7A5C8E;
+    --cat-otros:#6B6B60;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink-900);
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    min-height:100vh;
+  }
+  .shell{
+    max-width:920px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--paper-50);
+    background-image:
+      repeating-linear-gradient(var(--paper-50) 0px, var(--paper-50) 27px, var(--paper-200) 28px);
+    box-shadow:0 0 60px rgba(0,0,0,0.4);
+    position:relative;
+  }
+  .spine{
+    position:sticky;
+    top:0;
+    z-index:10;
+    background:var(--ink-900);
+    color:var(--paper-50);
+    padding:20px 24px 18px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:3px double var(--gold);
+  }
+  .spine h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:24px;
+    margin:0;
+    letter-spacing:0.3px;
+  }
+  .spine .sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--paper-200);
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+  .spine button{
+    background:none;
+    border:1px solid rgba(236,231,214,0.4);
+    color:var(--paper-50);
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .spine button:hover{background:rgba(236,231,214,0.1);}
+
+  /* ---------- Auth ---------- */
+  .auth-wrap{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:24px;
+  }
+  .auth-card{
+    background:var(--paper-50);
+    border:1px solid var(--paper-200);
+    border-radius:6px;
+    padding:36px 32px;
+    max-width:380px;
+    width:100%;
+    box-shadow:0 10px 40px rgba(0,0,0,0.35);
+  }
+  .auth-card h1{
+    font-family:'Fraunces',serif;
+    font-size:26px;
+    font-weight:600;
+    margin:0 0 4px;
+    color:var(--ink-900);
+  }
+  .auth-card p.tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--text-soft);
+    margin:0 0 28px;
+  }
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--text-soft);
+    margin:14px 0 5px;
+    font-weight:500;
+  }
+  input, select, textarea{
+    width:100%;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:10px 11px;
+    border:1px solid var(--paper-200);
+    border-radius:4px;
+    background:#fff;
+    color:var(--text);
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:var(--ink-900);
+  }
+  .btn-primary{
+    width:100%;
+    margin-top:22px;
+    background:var(--ink-900);
+    color:var(--paper-50);
+    border:none;
+    padding:12px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    font-weight:500;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .btn-primary:hover{background:var(--ink-800);}
+  .auth-toggle{
+    text-align:center;
+    margin-top:16px;
+    font-size:13px;
+    color:var(--text-soft);
+  }
+  .auth-toggle a{color:var(--sage);cursor:pointer;text-decoration:underline;}
+  .auth-error{
+    background:#fbe8e3;
+    border:1px solid var(--stamp);
+    color:var(--stamp-dark);
+    font-size:12px;
+    padding:9px 11px;
+    border-radius:4px;
+    margin-top:14px;
+  }
+  .auth-note{
+    font-size:11px;
+    color:var(--text-soft);
+    margin-top:18px;
+    line-height:1.5;
+    border-top:1px dashed var(--paper-200);
+    padding-top:14px;
+  }
+
+  /* ---------- App ---------- */
+  .content{padding:22px 24px 60px;}
+
+  .month-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .month-nav button{
+    background:none;
+    border:1px solid var(--paper-200);
+    width:32px;height:32px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:16px;
+    color:var(--ink-900);
+  }
+  .month-nav button:hover{background:var(--paper-100);}
+  .month-nav .label{
+    font-family:'Fraunces',serif;
+    font-size:19px;
+    font-weight:500;
+    text-transform:capitalize;
+    color:var(--ink-900);
+  }
+
+  .stamp-total{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .seal{
+    width:92px;height:92px;
+    border-radius:50%;
+    border:3px solid var(--stamp);
+    color:var(--stamp);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    transform:rotate(-6deg);
+    font-family:'IBM Plex Mono',monospace;
+    flex-shrink:0;
+  }
+  .seal .amt{font-size:16px;font-weight:600;}
+  .seal .lbl{font-size:8px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+  .cat-bars{flex:1;min-width:220px;}
+  .cat-bar-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:6px;
+    font-size:12px;
+  }
+  .cat-bar-row .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .cat-bar-row .name{width:78px;color:var(--text-soft);flex-shrink:0;}
+  .cat-bar-row .track{flex:1;height:6px;background:var(--paper-200);border-radius:3px;overflow:hidden;}
+  .cat-bar-row .fill{height:100%;border-radius:3px;}
+  .cat-bar-row .val{
+    font-family:'IBM Plex Mono',monospace;
+    width:64px;
+    text-align:right;
+    color:var(--text);
+    flex-shrink:0;
+  }
+
+  /* add form */
+  .add-card{
+    background:#fff;
+    border:1px solid var(--paper-200);
+    border-radius:6px;
+    padding:16px;
+    margin-bottom:26px;
+  }
+  .add-card .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .add-card .row > div{flex:1;min-width:110px;}
+  .add-card .row2{display:flex;gap:10px;margin-top:10px;}
+  .add-card .row2 > div{flex:1;}
+  .chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .chip{
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:14px;
+    border:1px solid var(--paper-200);
+    background:#fff;
+    cursor:pointer;
+    color:var(--text-soft);
+  }
+  .chip.active{
+    color:#fff;
+    border-color:transparent;
+  }
+  .add-btn{
+    margin-top:14px;
+    background:var(--stamp);
+    color:#fff;
+    border:none;
+    padding:10px 20px;
+    border-radius:4px;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .add-btn:hover{background:var(--stamp-dark);}
+  .form-error{color:var(--stamp-dark);font-size:12px;margin-top:8px;}
+
+  /* ledger list */
+  .day-group{margin-bottom:6px;}
+  .day-head{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--text-soft);
+    margin:18px 0 6px;
+  }
+  .ledger-row{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    padding:9px 2px;
+    border-bottom:1px dotted var(--paper-200);
+  }
+  .ledger-row .cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-bottom:2px;}
+  .ledger-row .desc{
+    font-size:13.5px;
+    color:var(--text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .ledger-row .cat-tag{
+    font-size:10.5px;
+    color:var(--text-soft);
+    flex-shrink:0;
+  }
+  .ledger-row .leader{
+    flex:1;
+    border-bottom:1px dotted var(--paper-200);
+    margin-bottom:4px;
+    min-width:12px;
+  }
+  .ledger-row .amount{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:14px;
+    font-weight:600;
+    color:var(--stamp-dark);
+    flex-shrink:0;
+  }
+  .ledger-row .del{
+    background:none;
+    border:none;
+    color:var(--paper-200);
+    cursor:pointer;
+    font-size:15px;
+    flex-shrink:0;
+    padding:0 0 0 4px;
+  }
+  .ledger-row .del:hover{color:var(--stamp);}
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--text-soft);
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-size:15px;
+  }
+  .loading{
+    text-align:center;
+    padding:60px;
+    color:var(--paper-50);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+  }
+  @media (max-width:520px){
+    .spine{padding:16px 16px 14px;}
+    .content{padding:16px 16px 50px;}
+    .seal{width:78px;height:78px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script>
+/* ============================================================
+   CONFIGURA AQUI TU PROYECTO DE SUPABASE (gratuito)
+   1. Crea un proyecto en https://supabase.com
+   2. Ve a Project Settings > API
+   3. Copia "Project URL" y "anon public key" abajo
+   ============================================================ */
+const SUPABASE_URL = "TU_SUPABASE_URL_AQUI";
+const SUPABASE_ANON_KEY = "TU_SUPABASE_ANON_KEY_AQUI";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CATEGORIES = [
+  { id:"comida",      label:"Comida",      color:"var(--cat-comida)" },
+  { id:"transporte",  label:"Transporte",  color:"var(--cat-transporte)" },
+  { id:"vivienda",    label:"Vivienda",    color:"var(--cat-vivienda)" },
+  { id:"salud",       label:"Salud",       color:"var(--cat-salud)" },
+  { id:"ocio",        label:"Ocio",        color:"var(--cat-ocio)" },
+  { id:"otros",       label:"Otros",       color:"var(--cat-otros)" },
+];
+const catById = id => CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length-1];
+
+const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const CURRENCY = "S/";
+
+const root = document.getElementById("root");
+
+let state = {
+  session: null,
+  authMode: "login", // login | signup
+  authError: "",
+  loadingAuth: false,
+  gastos: [],
+  loadingGastos: true,
+  viewDate: new Date(),
+  form: { monto:"", categoria:"comida", fecha: todayStr(), nota:"" },
+  formError: "",
+};
+
+function todayStr(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+
+function fmt(n){
+  return CURRENCY + " " + Number(n).toLocaleString("es-PE", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function render(){
+  if(!state.session){
+    renderAuth();
+  } else {
+    renderApp();
+  }
+}
+
+/* ---------------- AUTH SCREEN ---------------- */
+function renderAuth(){
+  const isLogin = state.authMode === "login";
+  root.innerHTML = `
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <h1>Libro de Gastos</h1>
+        <p class="tag">Tu registro personal, en cualquier lugar</p>
+        <form id="authForm">
+          <label>Correo</label>
+          <input type="email" id="email" required placeholder="tucorreo@ejemplo.com" autocomplete="email"/>
+          <label>Contraseña</label>
+          <input type="password" id="password" required minlength="6" placeholder="Mínimo 6 caracteres" autocomplete="${isLogin ? 'current-password':'new-password'}"/>
+          ${state.authError ? `<div class="auth-error">${state.authError}</div>` : ""}
+          <button class="btn-primary" type="submit">${state.loadingAuth ? "Espera..." : (isLogin ? "Ingresar" : "Crear cuenta")}</button>
+        </form>
+        <div class="auth-toggle">
+          ${isLogin ? '¿No tienes cuenta? <a id="toSignup">Crear una</a>' : '¿Ya tienes cuenta? <a id="toLogin">Ingresar</a>'}
+        </div>
+        <div class="auth-note">
+          Tus datos se guardan en tu propio proyecto de Supabase, protegidos por autenticación. Nadie más puede ver tus gastos.
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("authForm").addEventListener("submit", handleAuthSubmit);
+  const toSignup = document.getElementById("toSignup");
+  const toLogin = document.getElementById("toLogin");
+  if(toSignup) toSignup.addEventListener("click", ()=>{ state.authMode="signup"; state.authError=""; render(); });
+  if(toLogin) toLogin.addEventListener("click", ()=>{ state.authMode="login"; state.authError=""; render(); });
+}
+
+async function handleAuthSubmit(e){
+  e.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  state.loadingAuth = true;
+  state.authError = "";
+  render();
+
+  try{
+    if(state.authMode === "login"){
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+    } else {
+      const { error } = await sb.auth.signUp({ email, password });
+      if(error) throw error;
+      state.authError = "Cuenta creada. Revisa tu correo si se pide confirmación, o ingresa directamente.";
+    }
+  } catch(err){
+    state.authError = translateError(err.message);
+  }
+  state.loadingAuth = false;
+  render();
+}
+
+function translateError(msg){
+  if(/already registered/i.test(msg)) return "Ese correo ya tiene una cuenta.";
+  if(/invalid login credentials/i.test(msg)) return "Correo o contraseña incorrectos.";
+  if(/at least 6 characters/i.test(msg)) return "La contraseña debe tener al menos 6 caracteres.";
+  return msg;
+}
+
+/* ---------------- APP SCREEN ---------------- */
+function renderApp(){
+  const { viewDate } = state;
+  const monthLabel = `${MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+
+  const gastosMes = state.gastos.filter(g => sameMonth(g.fecha, viewDate));
+  const total = gastosMes.reduce((s,g) => s + Number(g.monto), 0);
+
+  const totalsByCat = {};
+  CATEGORIES.forEach(c => totalsByCat[c.id] = 0);
+  gastosMes.forEach(g => { totalsByCat[g.categoria] = (totalsByCat[g.categoria]||0) + Number(g.monto); });
+  const maxCat = Math.max(1, ...Object.values(totalsByCat));
+
+  root.innerHTML = `
+    <div class="shell">
+      <div class="spine">
+        <div>
+          <h1>Libro de Gastos</h1>
+          <div class="sub">${state.session.user.email}</div>
+        </div>
+        <button id="logoutBtn">Salir</button>
+      </div>
+
+      <div class="content">
+        <div class="month-nav">
+          <button id="prevMonth">&#8592;</button>
+          <div class="label">${monthLabel}</div>
+          <button id="nextMonth">&#8594;</button>
+        </div>
+
+        <div class="stamp-total">
+          <div class="seal">
+            <div class="amt">${fmtShort(total)}</div>
+            <div class="lbl">Total mes</div>
+          </div>
+          <div class="cat-bars">
+            ${CATEGORIES.map(c => `
+              <div class="cat-bar-row">
+                <span class="dot" style="background:${c.color}"></span>
+                <span class="name">${c.label}</span>
+                <span class="track"><span class="fill" style="width:${(totalsByCat[c.id]/maxCat*100)}%; background:${c.color}"></span></span>
+                <span class="val">${fmt(totalsByCat[c.id])}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="add-card">
+          <form id="addForm">
+            <div class="row">
+              <div>
+                <label>Monto (${CURRENCY})</label>
+                <input type="number" id="fMonto" step="0.01" min="0" placeholder="0.00" required/>
+              </div>
+              <div>
+                <label>Fecha</label>
+                <input type="date" id="fFecha" value="${state.form.fecha}" required/>
+              </div>
+            </div>
+            <label>Categoría</label>
+            <div class="chip-row" id="chipRow">
+              ${CATEGORIES.map(c => `<span class="chip ${state.form.categoria===c.id?'active':''}" data-cat="${c.id}" style="${state.form.categoria===c.id?`background:${c.color};border-color:${c.color}`:''}">${c.label}</span>`).join("")}
+            </div>
+            <label>Nota (opcional)</label>
+            <input type="text" id="fNota" placeholder="Ej. almuerzo con Ana"/>
+            ${state.formError ? `<div class="form-error">${state.formError}</div>` : ""}
+            <button class="add-btn" type="submit">Anotar gasto</button>
+          </form>
+        </div>
+
+        <div id="ledgerList">
+          ${state.loadingGastos ? '<div class="empty">Cargando...</div>' : renderLedger(gastosMes)}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("logoutBtn").addEventListener("click", async ()=>{
+    await sb.auth.signOut();
+  });
+  document.getElementById("prevMonth").addEventListener("click", ()=>{
+    state.viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
+    render();
+  });
+  document.getElementById("nextMonth").addEventListener("click", ()=>{
+    state.viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
+    render();
+  });
+  document.getElementById("chipRow").addEventListener("click", (e)=>{
+    const chip = e.target.closest(".chip");
+    if(!chip) return;
+    state.form.categoria = chip.dataset.cat;
+    render();
+  });
+  document.getElementById("addForm").addEventListener("submit", handleAddGasto);
+
+  document.querySelectorAll(".del").forEach(btn=>{
+    btn.addEventListener("click", ()=> handleDelete(btn.dataset.id));
+  });
+}
+
+function fmtShort(n){
+  return CURRENCY + Number(n).toLocaleString("es-PE", {maximumFractionDigits:0});
+}
+
+function sameMonth(fechaStr, viewDate){
+  const d = new Date(fechaStr + "T00:00:00");
+  return d.getMonth() === viewDate.getMonth() && d.getFullYear() === viewDate.getFullYear();
+}
+
+function renderLedger(gastosMes){
+  if(gastosMes.length === 0){
+    return `<div class="empty">Sin gastos anotados este mes todavía.</div>`;
+  }
+  const byDay = {};
+  gastosMes.forEach(g => {
+    byDay[g.fecha] = byDay[g.fecha] || [];
+    byDay[g.fecha].push(g);
+  });
+  const days = Object.keys(byDay).sort().reverse();
+
+  return days.map(day => {
+    const d = new Date(day + "T00:00:00");
+    const label = d.toLocaleDateString("es-PE", { weekday:'short', day:'numeric', month:'short' });
+    const rows = byDay[day].map(g => {
+      const cat = catById(g.categoria);
+      return `
+        <div class="ledger-row">
+          <span class="cat-dot" style="background:${cat.color}"></span>
+          <span class="desc">${g.nota ? escapeHtml(g.nota) : cat.label}</span>
+          <span class="cat-tag">${cat.label}</span>
+          <span class="leader"></span>
+          <span class="amount">${fmt(g.monto)}</span>
+          <button class="del" data-id="${g.id}" title="Borrar">&times;</button>
+        </div>
+      `;
+    }).join("");
+    return `<div class="day-group"><div class="day-head">${label}</div>${rows}</div>`;
+  }).join("");
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+async function handleAddGasto(e){
+  e.preventDefault();
+  const monto = parseFloat(document.getElementById("fMonto").value);
+  const fecha = document.getElementById("fFecha").value;
+  const nota = document.getElementById("fNota").value.trim();
+  const categoria = state.form.categoria;
+
+  if(!monto || monto <= 0){
+    state.formError = "Ingresa un monto válido.";
+    render();
+    return;
+  }
+  state.formError = "";
+
+  const { data, error } = await sb.from("gastos").insert({
+    user_id: state.session.user.id,
+    monto, categoria, fecha, nota
+  }).select();
+
+  if(error){
+    state.formError = "No se pudo guardar: " + error.message;
+    render();
+    return;
+  }
+
+  state.gastos.unshift(data[0]);
+  state.form = { monto:"", categoria: state.form.categoria, fecha: todayStr(), nota:"" };
+  render();
+}
+
+async function handleDelete(id){
+  const prev = state.gastos;
+  state.gastos = state.gastos.filter(g => g.id !== id);
+  render();
+  const { error } = await sb.from("gastos").delete().eq("id", id);
+  if(error){
+    state.gastos = prev;
+    alert("No se pudo borrar el gasto.");
+    render();
+  }
+}
+
+async function loadGastos(){
+  state.loadingGastos = true;
+  const { data, error } = await sb.from("gastos").select("*").order("fecha", { ascending:false }).order("created_at", { ascending:false });
+  if(!error) state.gastos = data;
+  state.loadingGastos = false;
+  render();
+}
+
+/* ---------------- BOOTSTRAP ---------------- */
+root.innerHTML = '<div class="loading">Cargando tu libro de gastos...</div>';
+
+sb.auth.getSession().then(({ data:{ session } }) => {
+  state.session = session;
+  render();
+  if(session) loadGastos();
+});
+
+sb.auth.onAuthStateChange((_event, session) => {
+  state.session = session;
+  if(session){
+    loadGastos();
+  } else {
+    state.gastos = [];
+    render();
+  }
+});
+</script>
+</body>
+</html>
